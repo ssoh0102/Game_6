@@ -1,0 +1,132 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <conio.h>  // _kbhit(), _getch() 사용
+#include <windows.h> // Sleep 함수 사용
+#include <stdbool.h> // bool, true, false 사용
+#include <time.h> // srand()와 rand() 함수 사용
+
+#define FPS 60
+#define FRAME_DELAY (1000 / FPS) // 한 프레임의 지연 시간 (밀리초)
+#define SCREEN_WIDTH 80
+#define SCREEN_HEIGHT 24
+#define PLAYER_CHAR '@'
+#define EMPTY_CHAR ' '
+#define OBSTACLE_CHAR 'X'
+
+void sleep_ms(int milliseconds) {
+    Sleep(milliseconds); // Windows 환경에서 Sleep
+}
+
+void draw_screen(int player_x, int player_y, int obstacles[][2], int num_obstacles) {
+    system("cls"); // 콘솔 화면 초기화
+
+    // 화면 그리기
+    for (int i = 0; i < SCREEN_HEIGHT; i++) {
+        for (int j = 0; j < SCREEN_WIDTH; j++) {
+            // 플레이어 위치 그리기
+            if (i == player_y && j == player_x) {
+                printf("%c", PLAYER_CHAR);
+            }
+            else {
+                // 장애물 위치 그리기
+                int is_obstacle = 0;
+                for (int k = 0; k < num_obstacles; k++) {
+                    if (i == obstacles[k][1] && j == obstacles[k][0]) {
+                        printf("%c", OBSTACLE_CHAR);
+                        is_obstacle = 1;
+                        break;
+                    }
+                }
+                if (!is_obstacle) {
+                    printf("%c", EMPTY_CHAR);
+                }
+            }
+        }
+        printf("\n");
+    }
+}
+
+int main() {
+    int player_x = SCREEN_WIDTH / 2;
+    int player_y = SCREEN_HEIGHT - 2; // 화면 하단에 배치
+    int frame_count = 0;
+    int seconds_elapsed = 0;
+    bool running = true;
+    srand(time(NULL)); // 랜덤 장애물 생성 초기화
+
+    // 장애물 관리 (위치, 개수)
+    int obstacles[SCREEN_HEIGHT][2]; // 장애물 (x, y) 위치 배열
+    int num_obstacles = 0;
+
+    printf("피하기 게임 시작! 종료하려면 'q'를 누르세요.\n");
+
+    while (running) {
+        // 사용자 입력 처리 (w, a, s, d, q)
+        if (_kbhit()) {
+            char input = _getch();  // 키 입력 대기
+            if (input == 'q' || input == 'Q') {
+                running = false; // 게임 종료
+            }
+            else if (input == 'w' && player_y > 0) {
+                player_y--; // 위로 이동
+            }
+            else if (input == 's' && player_y < SCREEN_HEIGHT - 1) {
+                player_y++; // 아래로 이동
+            }
+            else if (input == 'a' && player_x > 0) {
+                player_x--; // 왼쪽으로 이동
+            }
+            else if (input == 'd' && player_x < SCREEN_WIDTH - 1) {
+                player_x++; // 오른쪽으로 이동
+            }
+        }
+
+        // 장애물 위치 갱신
+        if (frame_count % (FPS / 2) == 0) { // 장애물 속도를 더 빠르게 하려면 FPS를 더 낮추면 됨
+            // 장애물 생성 (랜덤 위치)
+            if (num_obstacles < SCREEN_HEIGHT) {
+                int obstacle_x = rand() % SCREEN_WIDTH;
+                obstacles[num_obstacles][0] = obstacle_x;
+                obstacles[num_obstacles][1] = 0; // 장애물의 y 좌표는 0부터 시작
+                num_obstacles++;
+            }
+
+            // 장애물 이동
+            for (int i = 0; i < num_obstacles; i++) {
+                obstacles[i][1]++; // 장애물 한 칸 아래로 이동
+            }
+
+            // 장애물 제거 (화면을 벗어난 장애물)
+            for (int i = 0; i < num_obstacles; i++) {
+                if (obstacles[i][1] >= SCREEN_HEIGHT) {
+                    for (int j = i; j < num_obstacles - 1; j++) {
+                        obstacles[j][0] = obstacles[j + 1][0];
+                        obstacles[j][1] = obstacles[j + 1][1];
+                    }
+                    num_obstacles--;
+                    i--; // 배열 크기 감소 처리
+                }
+            }
+        }
+
+        // 화면 갱신 (60프레임마다 1초 경과)
+        if (frame_count % FPS == 0) {
+            draw_screen(player_x, player_y, obstacles, num_obstacles); // 화면 출력
+            printf("경과 시간: %d초\n", seconds_elapsed);
+            seconds_elapsed++;
+        }
+
+        // 충돌 검사
+        for (int i = 0; i < num_obstacles; i++) {
+            if (obstacles[i][1] == player_y && obstacles[i][0] == player_x) {
+                running = false; // 장애물에 충돌 시 게임 종료
+                printf("게임 오버! 장애물에 맞았습니다.\n");
+            }
+        }
+
+        sleep_ms(FRAME_DELAY / 2); // 프레임 지연을 더 줄여서 빠르게 움직이게 함
+        frame_count++;
+    }
+
+    return 0;
+}
